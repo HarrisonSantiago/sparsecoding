@@ -133,7 +133,7 @@ def frequency_whitening(
     
     return torch.stack(whitened_batch)
 
-def compute_whitening_stats(data: torch.Tensor, algorithm, n_components = None, **kwargs) -> Dict:
+def compute_whitening_stats(data: torch.Tensor, algorithm = 'zca', n_components = None, **kwargs) -> Dict:
 
   """
   Given a tensor of data, compute statistics for whitening transform.
@@ -275,9 +275,9 @@ def whitening_transform(
     Returns:
         Whitened images of shape [N, C, H, W]
     """
+
     N, C, H, W = images.shape
     
-    num_features = C * H * W
     flat_images = images.reshape(N, -1)
 
     if stats is None:
