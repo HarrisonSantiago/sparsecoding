@@ -1,5 +1,6 @@
 import torch
 import torch.fft as fft
+import numpy as np
 from typing import Dict, Optional
 from functools import lru_cache
 
@@ -152,7 +153,7 @@ def compute_whitening_stats(data: torch.Tensor, algorithm = 'zca', n_components 
     if algorithm not in ['zca', 'pca', 'cholesky']:
         raise ValueError(f"algorithm must be one of ['zca', 'pca'], got {algorithm}")
 
-    data = data.reshape((-1, torch.prod(data.shape[1:])))
+    data = data.reshape((-1, np.prod(data.size()[1:])))
 
 
     # Step 1: Compute mean
@@ -231,7 +232,7 @@ def apply_whitening_transform(
         Whitened data of shape [N, D] for ZCA and cholesky or [N, D_reduced] for PCA
         where D_reduced is the number of components kept
     """
-    data = data.reshape((-1, torch.prod(data.shape[1:])))
+    data = data.reshape((-1, np.prod(data.size()[1:])))
     
     x_centered = data - stats.get('mean')
     
@@ -275,6 +276,8 @@ def whitening_transform(
     Returns:
         Whitened images of shape [N, C, H, W]
     """
+
+    N, C, H, W = images.shape
 
     if stats is None:
       stats = compute_whitening_stats(images,
