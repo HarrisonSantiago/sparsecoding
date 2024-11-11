@@ -135,75 +135,75 @@ def frequency_whitening(
 
 def compute_whitening_stats(data: torch.Tensor, algorithm = 'zca', n_components = None, **kwargs) -> Dict:
 
-  """
-  Given a tensor of data, compute statistics for whitening transform.
+    """
+    Given a tensor of data, compute statistics for whitening transform.
   
-  Args:
-      data: Input data of shape [n_samples, n_features]
-      mode: One of ['zca', 'pca']
-      n_components: Number of principal components to keep. If None, keep all components.
-                    If int, keep that many components. If float between 0 and 1,
-                    keep components that explain that fraction of variance.
-      
-  Returns:
-      Dictionary containing PCA statistics and explained variance ratio
-  """
+    Args:
+        data: Input data where samples are along first axis
+        mode: One of ['zca', 'pca']
+        n_components: Number of principal components to keep. If None, keep all components.
+                        If int, keep that many components. If float between 0 and 1,
+                        keep components that explain that fraction of variance.
+        
+    Returns:
+        Dictionary containing PCA statistics and explained variance ratio
+    """
 
-  if algorithm not in ['zca', 'pca', 'cholesky']:
-    raise ValueError(f"algorithm must be one of ['zca', 'pca'], got {algorithm}")
+    if algorithm not in ['zca', 'pca', 'cholesky']:
+        raise ValueError(f"algorithm must be one of ['zca', 'pca'], got {algorithm}")
 
-  if data.dim() != 2:
-    raise ValueError(f"Expected 2D input data, got shape {data.shape}")
+    data = data.reshape((-1, torch.prod(data.shape[1:])))
 
-  # Step 1: Compute mean
-  mean = torch.mean(data, dim=0)
-  Sigma = torch.cov(data.T)
 
-  # Step 2: Compute eigenvalues/eigenvectors
-  # We do this via SVD as it is a little less buggy that torch.eigh 
-  # For this type of data
+    # Step 1: Compute mean
+    mean = torch.mean(data, dim=0)
+    Sigma = torch.cov(data.T)
 
-  # U: [n_samples, n_samples]
-  # S: [min(n_samples, n_features)]
-  # V: [n_features, n_features]
-  U, S, V = torch.svd(Sigma)
-  
-  # Convert singular values to eigenvalues
-  n_samples = data.shape[0]
-  eigenvalues = (S ** 2) / (n_samples - 1)
-  
-  eigenvectors = V      
-  
-  #Step 3: If doing pca whitening we provide the option of returning a certain
-  # num of principal components. 0 <= n_components < 1 indicates you want to keep
-  # a certain percentage of explained variance. n_components > 1 indicates a 
-  # you wish to keep that many. n_components = None means you want to keep all
-  if algorithm == 'pca' and n_components is not None:
+    # Step 2: Compute eigenvalues/eigenvectors
+    # We do this via SVD as it is a little less buggy that torch.eigh 
+    # For this type of data
 
-    if isinstance(n_components, float):
-        if not 0 < n_components <= 1:
-            raise ValueError("If n_components is float, it must be between 0 and 1")
+    # U: [n_samples, n_samples]
+    # S: [min(n_samples, n_features)]
+    # V: [n_features, n_features]
+    U, S, V = torch.svd(Sigma)
+    
+    # Convert singular values to eigenvalues
+    n_samples = data.shape[0]
+    eigenvalues = (S ** 2) / (n_samples - 1)
+    
+    eigenvectors = V      
+    
+    #Step 3: If doing pca whitening we provide the option of returning a certain
+    # num of principal components. 0 <= n_components < 1 indicates you want to keep
+    # a certain percentage of explained variance. n_components > 1 indicates a 
+    # you wish to keep that many. n_components = None means you want to keep all
+    if algorithm == 'pca' and n_components is not None:
 
-        explained_variance_ratio = eigenvalues / torch.sum(eigenvalues)
-        cumulative_variance_ratio = torch.cumsum(explained_variance_ratio, dim=0)
+        if isinstance(n_components, float):
+            if not 0 < n_components <= 1:
+                raise ValueError("If n_components is float, it must be between 0 and 1")
 
-        n_components = torch.sum(cumulative_variance_ratio <= n_components) + 1
+            explained_variance_ratio = eigenvalues / torch.sum(eigenvalues)
+            cumulative_variance_ratio = torch.cumsum(explained_variance_ratio, dim=0)
 
-    elif isinstance(n_components, int):
-        if not 0 < n_components <= len(eigenvalues):
-            raise ValueError(f"n_components must be between 1 and {len(eigenvalues)}")
-    else:
-        raise ValueError("n_components must be int or float")
-            
-    # Truncate eigenvalues and eigenvectors
-    eigenvalues = eigenvalues[:n_components]
-    eigenvectors = eigenvectors[:, :n_components]
-  
-  return {
-      'mean': mean,
-      'eigenvalues': eigenvalues,
-      'eigenvectors': eigenvectors,
-      }
+            n_components = torch.sum(cumulative_variance_ratio <= n_components) + 1
+
+        elif isinstance(n_components, int):
+            if not 0 < n_components <= len(eigenvalues):
+                raise ValueError(f"n_components must be between 1 and {len(eigenvalues)}")
+        else:
+            raise ValueError("n_components must be int or float")
+                
+        # Truncate eigenvalues and eigenvectors
+        eigenvalues = eigenvalues[:n_components]
+        eigenvectors = eigenvectors[:, :n_components]
+    
+    return {
+        'mean': mean,
+        'eigenvalues': eigenvalues,
+        'eigenvectors': eigenvectors,
+        }
 
 def apply_whitening_transform(
   data: torch.Tensor,
@@ -222,8 +222,7 @@ def apply_whitening_transform(
     for details on PCA and ZCA in particular
     
     Args:
-        data: Input data of shape [N, D] where N is the number of data points
-              (images) and D is the number of features (C x H x W)
+        data: Input data where unique data elements are along the first axis
         stats: Dict containing whitening statistics (mean, eigenvectors, eigenvalues)
         mode: Whitening mode, one of ['pca', 'zca', or 'cholesky]
         epsilon: Small constant to prevent division by zero
@@ -232,6 +231,7 @@ def apply_whitening_transform(
         Whitened data of shape [N, D] for ZCA and cholesky or [N, D_reduced] for PCA
         where D_reduced is the number of components kept
     """
+    data = data.reshape((-1, torch.prod(data.shape[1:])))
     
     x_centered = data - stats.get('mean')
     
@@ -276,12 +276,8 @@ def whitening_transform(
         Whitened images of shape [N, C, H, W]
     """
 
-    N, C, H, W = images.shape
-    
-    flat_images = images.reshape(N, -1)
-
     if stats is None:
-      stats = compute_whitening_stats(flat_images,
+      stats = compute_whitening_stats(images,
                                       algorithm = algorithm,
                                       n_components = n_components)
       print('none')
@@ -293,7 +289,7 @@ def whitening_transform(
           ):
         raise ValueError("stats must contain mean, eigenvalues, and eigenvectors")
     
-    whitened_flat = apply_whitening_transform(flat_images, stats, algorithm, epsilon)
+    whitened_flat = apply_whitening_transform(images, stats, algorithm, epsilon)
 
 
     # Because of the way you truncate the eigenvalues/vectors
