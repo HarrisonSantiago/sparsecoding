@@ -3,7 +3,6 @@ import unittest
 
 from transforms import whiten
 
-
 class TestWhitener(unittest.TestCase):
     def test_pca(self):
         N = 100

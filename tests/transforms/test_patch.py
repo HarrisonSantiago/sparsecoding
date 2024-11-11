@@ -3,6 +3,7 @@ import unittest
 
 from transforms.patch import sample_random_patches, patchify, quilt
 
+torch.manual_seed(1997)
 
 class TestPatcher(unittest.TestCase):
     def test_patchify_quilt_cycle(self):
@@ -12,7 +13,6 @@ class TestPatcher(unittest.TestCase):
         H = 6 * P
         W = 8 * P
 
-        torch.manual_seed(1997)
 
         images = torch.rand((X, Y, Z, C, H, W), dtype=torch.float32)
 
