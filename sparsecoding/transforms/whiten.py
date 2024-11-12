@@ -162,19 +162,7 @@ def compute_whitening_stats(data: torch.Tensor, algorithm = 'zca', n_components 
     Sigma = torch.cov(x_centered.T)
 
     # Step 2: Compute eigenvalues/eigenvectors
-    # We do this via SVD as it is a little less buggy that torch.eigh 
-    # for the nature of image data. Ideally, we would be computing
-    # the actual eigenvalue/eigenvectors using torch.linalg.eigh
-
-    # U: [n_samples, n_samples]
-    # S: [min(n_samples, n_features)]
-    # V: [n_features, n_features]
-    U, S, V = torch.linalg.svd(Sigma)
-
-    eigenvalues = S
-    eigenvectors = U  
-
-    #eigenvalues, eigenvectors = torch.linalg.eigh(Sigma)    
+    eigenvalues, eigenvectors = torch.linalg.eigh(Sigma)    
     
     #Step 3: If doing pca whitening we provide the option of returning a certain
     # num of principal components. 0 <= n_components < 1 indicates you want to keep
