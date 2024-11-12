@@ -134,7 +134,7 @@ def frequency_whitening(
     
     return torch.stack(whitened_batch)
 
-def compute_whitening_stats(data: torch.Tensor, algorithm = 'zca', n_components = None, **kwargs) -> Dict:
+def compute_whitening_stats(data: torch.Tensor, algorithm = 'zca', n_components = None, centered = True, decomp = 'eigh', **kwargs) -> Dict:
 
     """
     Given a tensor of data, compute statistics for whitening transform.
@@ -158,11 +158,29 @@ def compute_whitening_stats(data: torch.Tensor, algorithm = 'zca', n_components 
 
     # Step 1: Compute mean
     mean = torch.mean(data, dim=0)
-    x_centered = data - mean
-    Sigma = torch.cov(x_centered.T)
+
+    if centered: 
+        x_centered = data - mean
+        Sigma = torch.cov(x_centered.T)
+    else:
+        Sigma = torch.cov(data.T)
 
     # Step 2: Compute eigenvalues/eigenvectors
-    eigenvalues, eigenvectors = torch.linalg.eigh(Sigma)    
+
+    if decomp == 'eigh':
+        eigenvalues, eigenvectors = torch.linalg.eigh(Sigma)
+
+    if decomp == 'svd':
+        U, S, V = torch.svd(Sigma)
+        n_samples = data.shape[0]
+        eigenvalues = S
+        eigenvectors = U
+
+    if decomp == 'svd_square':
+        U, S, V = torch.svd(Sigma)
+        n_samples = data.shape[0]
+        eigenvalues = (S ** 2) / (n_samples - 1)
+        eigenvectors = U
     
     #Step 3: If doing pca whitening we provide the option of returning a certain
     # num of principal components. 0 <= n_components < 1 indicates you want to keep
